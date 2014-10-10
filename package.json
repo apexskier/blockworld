@@ -1,0 +1,17 @@
+{
+  "name": "phonegame",
+  "version": "0.0.0",
+  "description": "Multidevice world thing.",
+  "main": "index.js",
+  "dependencies": {
+    "express": "~4.9.6",
+    "randomcolor": "~0.1.1",
+    "socket.io": "~1.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Cameron Little",
+  "license": "MIT"
+}
