@@ -1,29 +1,30 @@
 var app = require('express')();
+var serveStatic = require('serve-static');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var randomcolor = require('randomcolor');
 
+app.use(serveStatic(__dirname + '/static'));
+
 app.get('/', function(req, res) {
     res.sendFile('index.html', {"root": __dirname});
 });
-app.get('/client', function(req, res) {
-    res.sendFile('client.html', {"root": __dirname});
-});
 
-var objects = {};
+var objects = {
+    type: "collection"
+};
 
 io.on('connection', function(socket) {
     console.log('a user connected');
-    for (id in objects) {
-        socket.emit('add', objects[id]);
-    }
+    socket.emit('add', objects);
     var id = socket.id;
     var color = randomcolor({
         luminosity: 'bright'
     });
     objects[id] = {
         id: id,
-        color: color
+        color: color,
+        type: "cube"
     }
     var o = objects[id];
     console.log(o.color);
@@ -37,7 +38,6 @@ io.on('connection', function(socket) {
         delete objects[id];
     });
     socket.on('ping', function(msg) {
-        console.log('ping');
         socket.emit('pong', {
             color: color
         });
@@ -47,12 +47,13 @@ io.on('connection', function(socket) {
         socket.broadcast.emit('move', msg);
     });
     socket.on('place', function(msg) {
-        console.log('place');
         var oid = guid();
         objects[oid] =  {
             id: oid,
             color: color,
-            position: msg.position
+            position: msg.position,
+            size: 0.5,
+            type: "cube"
         }
         io.emit('add', objects[oid]);
     })

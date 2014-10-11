@@ -6,12 +6,12 @@
   "dependencies": {
     "express": "~4.9.6",
     "randomcolor": "~0.1.1",
-    "socket.io": "~1.1.0"
+    "socket.io": "~1.1.0",
+    "serve-static": "~1.6.4"
   },
   "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Cameron Little",
-  "license": "MIT"
+  "author": "Cameron Little"
 }
