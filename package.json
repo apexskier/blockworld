@@ -7,7 +7,8 @@
     "express": "~4.9.6",
     "randomcolor": "~0.1.1",
     "socket.io": "~1.1.0",
-    "serve-static": "~1.6.4"
+    "serve-static": "~1.6.4",
+    "moment": "~2.8.3"
   },
   "devDependencies": {},
   "scripts": {

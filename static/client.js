@@ -1,36 +1,37 @@
 (function() {
     // constants
     const MOUSE_SENSITIVITY = 5; // higher is less sensitive
-    const LOWER_TOUCH_BOUNDARY = 100;
+    const LOWER_TOUCH_BOUNDARY = 0.3;
+    const SHORT_TAP_DURATION = 100;
     const MOBILE_PAN_CONTROL = "deviceorientation"; // "touchmove" or "deviceorientation"
 
     var socket = io.connect();
 
     var scene = new THREE.Scene();
-    var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
     var canvas = document.getElementById("main");
     var renderer = new THREE.WebGLRenderer({
         canvas: canvas
     });
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    document.body.appendChild( renderer.domElement );
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
 
     var geometry = new THREE.BoxGeometry(1,1,1);
-    var material = new THREE.MeshLambertMaterial( { color: 0x00ff00, ambient: 0x00ff00 } );
-    var cube = new THREE.Mesh( geometry, material );
-    var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.6 );
-    directionalLight.position.set( 1, 4, 7 ).normalize();
+    var material = new THREE.MeshLambertMaterial({ color: 0x00ff00, ambient: 0x00ff00 });
+    var cube = new THREE.Mesh(geometry, material);
+    var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(1, 4, 7).normalize();
     var ambientLight = new THREE.AmbientLight(0x666666);
 
-    scene.add( cube );
-    scene.add( directionalLight );
-    scene.add( ambientLight );
+    scene.add(cube);
+    scene.add(directionalLight);
+    scene.add(ambientLight);
 
     var objects = {}
 
     camera.position.z = 5;
-    camera.rotation.order = 'XYZ';
+    camera.rotation.order = 'ZXY';
 
     socket.on('connect', function(msg) {
         console.log("connected to ws");
@@ -42,23 +43,28 @@
         });
 
         socket.on('add', function(msg) {
+            console.log(msg);
             if (msg.type == "collection") {
                 for (i in msg) {
-                    addObject(msg[i]);
+                    if (i != "type") {
+                        addObject(msg[i]);
+                    }
                 }
             } else {
                 addObject(msg);
             }
         });
         function addObject(info) {
-            var material = new THREE.MeshLambertMaterial( { color: info.color, ambient: info.color } );
-            var geometry
+            console.log("adding object");
+            console.log(info);
+            var geometry;
             if (info.hasOwnProperty('size')) {
                 geometry = new THREE.BoxGeometry(info.size,info.size,info.size);
             } else {
                 geometry = new THREE.BoxGeometry(1,1,1);
             }
-            objects[info.id] = new THREE.Mesh( geometry, material );
+            var material = new THREE.MeshLambertMaterial({ color: info.color, ambient: info.color });
+            objects[info.id] = new THREE.Mesh(geometry, material);
             var o = objects[info.id]
             if (info.hasOwnProperty('position')) {
                 o.position.x = info.position.x;
@@ -200,14 +206,11 @@
     window.addEventListener("touchstart", function(e) {
         for (var k in e.changedTouches) {
             var testK = parseInt(k);
-            console.log("k (outer) = " + k);
             if (testK === testK) { // if isn't NaN
                 var t = e.changedTouches[k];
-                console.log("k (inner) = " + k);
-                if (height - t.clientY < LOWER_TOUCH_BOUNDARY) {
+                if (height - t.clientY < LOWER_TOUCH_BOUNDARY * height) {
                     lowerTouches++;
                     savedTouches[t.identifier] = "lower";
-                    console.log(lowerTouches);
                     if (lowerTouches == 1) {
                         change.position.z = 0.1;
                     } else {
@@ -231,24 +234,28 @@
     });
     window.addEventListener("touchend", function(e) {
         for (var k in e.changedTouches) {
-            var t = e.changedTouches[k];
-            if (typeof t == "object") {
-                if (savedTouches[t.identifier] == "lower") {
+            var testK = parseInt(k);
+            if (testK === testK) { // if isn't NaN
+                var t = e.changedTouches[k];
+                var saved = savedTouches[t.identifier];
+                if (saved == "lower") {
                     lowerTouches--;
-                    console.log(lowerTouches);
                     if (lowerTouches == 1) {
                         change.position.z = 0.1;
                     } else if (lowerTouches === 0) {
                         change.position.z = 0;
                     }
-                } else if (t.identifier === touchPan.id) {
-                    // stop panning
-                    touchPan.id = null;
-
-                    var diff = new Date() - savedTouches[t.identifier].time;
-                    // short tap
-                    if (diff < 100) {
-                        placeObject();
+                } else {
+                    if (t.identifier === touchPan.id) {
+                        // stop panning
+                        touchPan.id = null;
+                    }
+                    if (saved.hasOwnProperty("time")) {
+                        var diff = new Date() - saved.time;
+                        // short tap
+                        if (diff < SHORT_TAP_DURATION) {
+                            placeObject();
+                        }
                     }
                 }
             }
@@ -264,8 +271,9 @@
     });
     window.addEventListener("touchmove", function(e) {
         for (var k in e.changedTouches) {
-            var t = e.changedTouches[k];
-            if (typeof t == "object") {
+            var testK = parseInt(k);
+            if (testK === testK) { // if isn't NaN
+                var t = e.changedTouches[k];
                 if (MOBILE_PAN_CONTROL == "touchmove" && t.identifier === touchPan.id) {
                     // panning
                     camera.rotateY((t.clientX - touchPan.x) * radFactor / 5);
@@ -371,7 +379,7 @@
     function placeObject() {
         var objectplace = new THREE.Vector3();
         objectplace.copy(camera.position)
-        objectplace.add(new THREE.Vector3( 0, 0, -1 ).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
+        objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
         socket.emit('place', {
             position: {
                 x: objectplace.x,

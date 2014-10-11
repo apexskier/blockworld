@@ -3,6 +3,7 @@ var serveStatic = require('serve-static');
 var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var randomcolor = require('randomcolor');
+var moment = require('moment');
 
 app.use(serveStatic(__dirname + '/static'));
 
@@ -15,7 +16,6 @@ var objects = {
 };
 
 io.on('connection', function(socket) {
-    console.log('a user connected');
     socket.emit('add', objects);
     var id = socket.id;
     var color = randomcolor({
@@ -27,13 +27,13 @@ io.on('connection', function(socket) {
         type: "cube"
     }
     var o = objects[id];
-    console.log(o.color);
+    console.log('[' + moment().format() + '] ' + socket.handshake.address + ' client ' + id + ' connected: ' + o.color);
     socket.broadcast.emit('add', {
         id: id,
         color: o.color
     });
     socket.on('disconnect', function() {
-        console.log('user disconnected');
+        console.log('[' + moment().format() +'] client ' + id + ' disconnected: ' + o.color);
         io.emit('remove', {id: id});
         delete objects[id];
     });
