@@ -6,6 +6,8 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 var randomcolor = require('randomcolor');
 var moment = require('moment');
+var THREE = require('three');
+var _ = require('underscore');
 
 app.use(serveStatic(__dirname + '/static'));
 app.use(serveStatic(__dirname + '/node_modules'));
@@ -27,7 +29,10 @@ io.on('connection', function(socket) {
     objects[id] = {
         id: id,
         color: color,
-        type: "cube"
+        type: "cube",
+        position: {
+            x: 0, y: 0, z: 0
+        }
     }
     var o = objects[id];
     console.log('[' + moment().format() + '] ' + socket.handshake.address + ' client ' + id + ' connected: ' + o.color);
@@ -48,9 +53,33 @@ io.on('connection', function(socket) {
     socket.on('move', function(msg) {
         msg.id = id;
         socket.broadcast.emit('move', msg);
+        o.position = msg.position;
     });
     socket.on('place', function(msg) {
         var oid = guid();
+        var testVec = new THREE.Vector3(msg.position.x, msg.position.y, msg.position.z);
+        console.log(testVec.length());
+        if (Math.abs(testVec.length()) < 10) {
+            return; // can't place blocks in middle.
+        }
+        var tooClose = false;
+        _.each(objects, function(obj, k) {
+            if (!tooClose) {
+                switch (obj.type) {
+                    case "cube":
+                        var testVec2 = new THREE.Vector3();
+                        testVec2.copy(obj.position);
+                        if (Math.abs(testVec2.sub(testVec).length()) < 0.3) {
+                            tooClose = true;
+                        }
+                    default:
+                        ;
+                }
+            }
+        });
+        if (tooClose) {
+            return;
+        }
         objects[oid] =  {
             id: oid,
             color: color,
