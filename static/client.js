@@ -42,7 +42,7 @@
 
 
 
-    var geometry = new THREE.Geometry();
+    /*var geometry = new THREE.Geometry();
 
     geometry.vertices.push(
         new THREE.Vector3( -3,  3, 0 ),
@@ -77,6 +77,7 @@
     geometry.faces[2].c = geometry.vertices.length - 1;
     geometry.faces.push(new THREE.Face3(a, geometry.vertices.length - 1, c));
     geometry.faces.push(new THREE.Face3(geometry.vertices.length - 1, b, c));
+    */
 
     /*verticeDistances = _.map(geometry.vertices, function(d) {
         return geometry.vertices[v].distanceTo(nv)
@@ -90,13 +91,13 @@
 
     // add edges
 
-    geometry.computeBoundingSphere();
+    /*geometry.computeBoundingSphere();
     geometry.computeFaceNormals();
 
 
     var shape = new THREE.Mesh(geometry, material);
     scene.add(shape);
-
+    */
 
     var objects = {}
 
@@ -384,6 +385,24 @@
         camera.rotateX(-movementY * radFactor / MOUSE_SENSITIVITY);
     }
 
+    var newobj = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    var tempmaterial = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        ambient: 0xffffff,
+        opacity: 0.5,
+        transparent: true
+    });
+    var placeholderCube = new THREE.Mesh(newobj, tempmaterial);
+    var placeholderActive = false
+    function movePlaceholderCube() {
+        if (placeholderActive) {
+            var objectplace = new THREE.Vector3();
+            objectplace.copy(camera.position)
+            objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
+            placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
+        }
+    }
+
     window.addEventListener("keydown", function(e) {
         switch (e.keyCode) {
             case 87: // W
@@ -412,6 +431,14 @@
             case 40: // down
                 change.rotation.x = -2 * radFactor;
                 break;
+            case 32: // <space>
+                var objectplace = new THREE.Vector3();
+                objectplace.copy(camera.position)
+                objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
+                placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
+                scene.add(placeholderCube);
+                placeholderActive = true;
+                break;
             default:
                 break;
         }
@@ -436,6 +463,8 @@
                 break;
             case 32: // <space>
                 placeObject();
+                scene.remove(placeholderCube);
+                placeholderActive = false;
             default:
                 break;
         }
@@ -454,6 +483,17 @@
             }
         });
     }
+
+    var centerVector = new THREE.Vector3(0, 0, -1);
+    var raycaster = new THREE.Raycaster(camera.position, centerVector, 0.5, 6);
+    var lineMaterial = new THREE.LineBasicMaterial({
+        color: 0xff0000,
+        opacity: 1, linewidth: 3
+    });
+    var sceneline = {
+        line: null
+    };
+    var lastObj = null;
 
     function render() {
         requestAnimationFrame(render);
@@ -481,6 +521,45 @@
                 z: camera.position.z
             }
         });
+
+        centerVector.set(0, 0, -1);
+        centerVector.applyQuaternion(camera.quaternion).normalize();
+
+        raycaster.set(camera.position, centerVector);
+
+        objLookAt = _.min(raycaster.intersectObjects(_.map(objects, function(v, k) {
+            return v;
+        })), function(v) {
+            return v.distance;
+        });
+
+        if (objLookAt !== Infinity) {
+            lastObj = objLookAt;
+        }
+        if (lastObj !== null) {
+            var testVector = new THREE.Vector3();
+            testVector.copy(camera.position);
+            if (sceneline.line !== null) {
+                scene.remove(sceneline.line);
+            }
+            if (Math.abs(testVector.sub(lastObj.object.position).length()) < 8) {
+                var lineToObj = new THREE.Geometry();
+                var cameraLookVector = new THREE.Vector3();
+                camera.translateY(-1);
+                cameraLookVector.copy(camera.position);
+                camera.translateY(1);
+                lineToObj.vertices.push(cameraLookVector);
+
+                var objPosVector = new THREE.Vector3();
+                objPosVector.copy(lastObj.object.position);
+                lineToObj.vertices.push(objPosVector);
+
+                sceneline.line = new THREE.Line(lineToObj, lineMaterial);
+                scene.add(sceneline.line);
+            }
+        }
+
+        movePlaceholderCube();
 
         renderer.render(scene, camera);
     }
