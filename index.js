@@ -1,3 +1,5 @@
+var port = 3000;
+
 var app = require('express')();
 var serveStatic = require('serve-static');
 var http = require('http').Server(app);
@@ -6,6 +8,7 @@ var randomcolor = require('randomcolor');
 var moment = require('moment');
 
 app.use(serveStatic(__dirname + '/static'));
+app.use(serveStatic(__dirname + '/node_modules'));
 
 app.get('/', function(req, res) {
     res.sendFile('index.html', {"root": __dirname});
@@ -59,8 +62,8 @@ io.on('connection', function(socket) {
     })
 });
 
-http.listen(3000, function() {
-    console.log('listening on *:3000');
+http.listen(port, function() {
+    console.log('listening on *:' + port);
 });
 
 var guid = (function() {

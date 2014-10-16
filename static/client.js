@@ -2,7 +2,7 @@
     // constants
     const MOUSE_SENSITIVITY = 5; // higher is less sensitive
     const LOWER_TOUCH_BOUNDARY = 0.3;
-    const SHORT_TAP_DURATION = 100;
+    const SHORT_TAP_DURATION = 110;
     const MOBILE_PAN_CONTROL = "deviceorientation"; // "touchmove" or "deviceorientation"
 
     var socket = io.connect();
@@ -10,9 +10,12 @@
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+    var height = document.documentElement.clientHeight;
+    var width = document.documentElement.clientWidth;
+
     var canvas = document.getElementById("main");
     var renderer = new THREE.WebGLRenderer({
-        canvas: canvas
+        canvas: canvas,
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
@@ -20,13 +23,80 @@
     var geometry = new THREE.BoxGeometry(1,1,1);
     var material = new THREE.MeshLambertMaterial({ color: 0x00ff00, ambient: 0x00ff00 });
     var cube = new THREE.Mesh(geometry, material);
-    var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    directionalLight.position.set(1, 4, 7).normalize();
-    var ambientLight = new THREE.AmbientLight(0x666666);
+    //var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    //directionalLight.position.set(1, 4, 7).normalize();
+    var ambientLight = new THREE.AmbientLight(0x333333);
+
+    var sunShape = new THREE.SphereGeometry(3, 8, 8)
+    var sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    var sun = new THREE.Mesh(sunShape, sunMaterial);
+    var sunLight = new THREE.PointLight(0xffffff, 1, 100)
+    sun.position.set(15, 15, -15);
+    sunLight.position.set(15, 15, -15);
+    scene.add(sun);
+    scene.add(sunLight);
 
     scene.add(cube);
-    scene.add(directionalLight);
+    //scene.add(directionalLight);
     scene.add(ambientLight);
+
+
+
+    var geometry = new THREE.Geometry();
+
+    geometry.vertices.push(
+        new THREE.Vector3( -3,  3, 0 ),
+        new THREE.Vector3( -3, -3, 0 ),
+        new THREE.Vector3(  3, -3, 0 )
+    );
+
+    geometry.faces.push( new THREE.Face3( 0, 1, 2 ) );
+
+    // add faces
+    geometry.vertices.push(new THREE.Vector3(3, 0, -3));
+    geometry.faces.push(
+        new THREE.Face3(1, 0, 3),
+        new THREE.Face3(2, 1, 3),
+        new THREE.Face3(0, 2, 3)
+    );
+
+    // pick a face
+    var f = geometry.faces[2];
+    var a = f.a,
+        b = f.b,
+        c = f.c;
+    // get vertices
+    var v1 = geometry.vertices[f.a],
+        v2 = geometry.vertices[f.b],
+        v3 = geometry.vertices[f.c];
+    var nv = new THREE.Vector3(1,  -1)
+    nv.copy(v1).add(v2).add(v3).divideScalar(v1.length() + v2.length() + v3.length());
+
+    var nvi = geometry.vertices.push(nv);
+
+    geometry.faces[2].c = geometry.vertices.length - 1;
+    geometry.faces.push(new THREE.Face3(a, geometry.vertices.length - 1, c));
+    geometry.faces.push(new THREE.Face3(geometry.vertices.length - 1, b, c));
+
+    /*verticeDistances = _.map(geometry.vertices, function(d) {
+        return geometry.vertices[v].distanceTo(nv)
+    });
+
+    geometry.faces.push(
+        new THREE.Face3(1, 0, 3),
+        new THREE.Face3(2, 1, 3),
+        new THREE.Face3(0, 2, 3)
+    );*/
+
+    // add edges
+
+    geometry.computeBoundingSphere();
+    geometry.computeFaceNormals();
+
+
+    var shape = new THREE.Mesh(geometry, material);
+    scene.add(shape);
+
 
     var objects = {}
 
@@ -43,7 +113,6 @@
         });
 
         socket.on('add', function(msg) {
-            console.log(msg);
             if (msg.type == "collection") {
                 for (i in msg) {
                     if (i != "type") {
@@ -55,8 +124,6 @@
             }
         });
         function addObject(info) {
-            console.log("adding object");
-            console.log(info);
             var geometry;
             if (info.hasOwnProperty('size')) {
                 geometry = new THREE.BoxGeometry(info.size,info.size,info.size);
@@ -78,7 +145,6 @@
         }
 
         socket.on('remove', function(msg) {
-            console.log('remove');
             scene.remove(objects[msg.id]);
             delete objects[msg.id];
         });
@@ -138,8 +204,6 @@
         }
     };
 
-    var height = document.documentElement.clientHeight;
-
     var touchPan = {};
     var savedTouches = {};
     var oldBase;
@@ -150,16 +214,7 @@
         y: 0,
         z: 0
     }
-    if (typeof window.DeviceOrientationEvent != "undefined" && MOBILE_PAN_CONTROL == "deviceorientation") {
-        window.addEventListener("deviceorientation", handleOrientationInit, true);
-        function handleOrientationInit(e) {
-            oldOrientation.x = e.beta * radFactor;
-            oldOrientation.y = e.gamma * radFactor;
-            oldOrientation.z = e.alpha * radFactor;
-            window.removeEventListener("deviceorientation", handleOrientationInit, true);
-            window.addEventListener("deviceorientation", handleOrientation, true);
-        }
-
+    if (typeof window.DeviceOrientationEvent !== "undefined" && MOBILE_PAN_CONTROL == "deviceorientation") {
         function handleOrientation(e) {
             //event.absolute;
             /*
@@ -188,6 +243,14 @@
             camera.rotation.y = e.gamma * radFactor;
             camera.rotation.z = e.alpha * radFactor;
         }
+        function handleOrientationInit(e) {
+            oldOrientation.x = e.beta * radFactor;
+            oldOrientation.y = e.gamma * radFactor;
+            oldOrientation.z = e.alpha * radFactor;
+            window.removeEventListener("deviceorientation", handleOrientationInit, true);
+            window.addEventListener("deviceorientation", handleOrientation, true);
+        }
+        window.addEventListener("deviceorientation", handleOrientationInit, true);
     }
 
     /*
@@ -290,6 +353,9 @@
     /*
      * Desktop controls
      */
+    canvas.requestPointerLock = canvas.requestPointerLock ||
+        canvas.mozRequestPointerLock ||
+        canvas.webkitRequestPointerLock;
     canvas.onclick = function() {
         canvas.requestPointerLock();
     }
@@ -394,6 +460,9 @@
 
         cube.rotation.x += 0.01;
         cube.rotation.y += 0.01;
+
+        //shape.rotation.x += 0.005;
+        //shape.rotation.y += 0.005;
 
         camera.translateZ(-change.position.z);
         camera.translateX(change.position.x);
