@@ -31,8 +31,8 @@
     var sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
     var sun = new THREE.Mesh(sunShape, sunMaterial);
     var sunLight = new THREE.PointLight(0xffffff, 1, 100)
-    sun.position.set(15, 15, -15);
-    sunLight.position.set(15, 15, -15);
+    sun.position.set(30, 30, 30);
+    sunLight.position.set(30, 30, 30);
     scene.add(sun);
     scene.add(sunLight);
 
@@ -487,8 +487,10 @@
     var centerVector = new THREE.Vector3(0, 0, -1);
     var raycaster = new THREE.Raycaster(camera.position, centerVector, 0.5, 6);
     var lineMaterial = new THREE.LineBasicMaterial({
-        color: 0xff0000,
-        opacity: 1, linewidth: 3
+        color: 0x88aaff,
+        opacity: 0.7,
+        linewidth: 3,
+        transparent: true
     });
     var sceneline = {
         line: null
@@ -543,18 +545,30 @@
                 scene.remove(sceneline.line);
             }
             if (Math.abs(testVector.sub(lastObj.object.position).length()) < 8) {
-                var lineToObj = new THREE.Geometry();
-                var cameraLookVector = new THREE.Vector3();
+                var vertices = [];
                 camera.translateY(-1);
-                cameraLookVector.copy(camera.position);
+                camera.translateZ(-75/2 * radFactor * 1);
+                vertices.push(cloneVector(camera.position));
+                camera.translateZ(-0.4);
+                camera.translateY(0.4);
+                vertices.push(cloneVector(camera.position));
+                camera.translateY(-0.4);
+                camera.translateZ(0.4);
+                camera.translateZ(75/2 * radFactor * 1);
                 camera.translateY(1);
-                lineToObj.vertices.push(cameraLookVector);
+                vertices.push(cloneVector(lastObj.object.position));
 
-                var objPosVector = new THREE.Vector3();
-                objPosVector.copy(lastObj.object.position);
-                lineToObj.vertices.push(objPosVector);
+                var lineGeometry = new THREE.Geometry();
+                var SUBDIVISIONS = 20;
+                var curve = new THREE.QuadraticBezierCurve3();
+                curve.v0 = vertices[0];
+                curve.v1 = vertices[1];
+                curve.v2 = vertices[2];
+                for (j = 0; j < SUBDIVISIONS; j++) {
+                    lineGeometry.vertices.push( curve.getPoint(j / SUBDIVISIONS) );
+                }
 
-                sceneline.line = new THREE.Line(lineToObj, lineMaterial);
+                sceneline.line = new THREE.Line(lineGeometry, lineMaterial);
                 scene.add(sceneline.line);
             }
         }
@@ -562,6 +576,14 @@
         movePlaceholderCube();
 
         renderer.render(scene, camera);
+    }
+
+    function cloneVector(oldVector) {
+        return (function() {
+            var v = new THREE.Vector3();
+            v.copy(oldVector);
+            return v;
+        })()
     }
 
     render();

@@ -20,6 +20,63 @@ var objects = {
     type: "collection"
 };
 
+/*
+func[cntr_, rad_, n_, ang0_] :=
+ Graphics[{Circle[cntr, rad], {Red, PointSize@0.02,
+     Point[Table[rad{Cos [ang0 + j],Sin[ang0 + j]}, {j, 0,
+            2 Pi - 2 Pi/n, 2 Pi/n}]]}}]
+*/
+
+var guid = (function() {
+    function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+            .toString(16)
+            .substring(1);
+    }
+    return function() {
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+            s4() + '-' + s4() + s4() + s4();
+    };
+})();
+
+function circlePoints(center, rad, n, angle) {
+    for (var j = 0; j <= 2*Math.PI - 2*Math.PI/n; j += 2*Math.PI/n) {
+        var id = guid();
+        objects[id] = {
+            id: id,
+            position: {
+                x: rad * Math.cos(angle + j),
+                y: rad * Math.sin(angle + j),
+                z: 0
+            }
+        }
+    }
+}
+//circlePoints(0, 10, 8, 0);
+
+function spherePoints(n, rad) {
+    var dlng = Math.PI * (3 - Math.sqrt(5));
+    var dz = 2.0 / n;
+    var lng = 0;
+    var z = 1 - dz/2;
+    for (var k = 0; k < n; k++) {
+        var r = Math.sqrt(1 - z * z);
+        var id = guid();
+        objects[id] = {
+            id: id,
+            size: 0.2,
+            position: {
+                x: rad * Math.cos(lng) * r,
+                y: rad * Math.sin(lng) * r,
+                z: rad * z
+            }
+        }
+        z = z - dz;
+        lng = lng + dlng;
+    }
+}
+spherePoints(32, 10);
+
 io.on('connection', function(socket) {
     socket.emit('add', objects);
     var id = socket.id;
@@ -58,7 +115,6 @@ io.on('connection', function(socket) {
     socket.on('place', function(msg) {
         var oid = guid();
         var testVec = new THREE.Vector3(msg.position.x, msg.position.y, msg.position.z);
-        console.log(testVec.length());
         if (Math.abs(testVec.length()) < 10) {
             return; // can't place blocks in middle.
         }
@@ -94,15 +150,3 @@ io.on('connection', function(socket) {
 http.listen(port, function() {
     console.log('listening on *:' + port);
 });
-
-var guid = (function() {
-    function s4() {
-        return Math.floor((1 + Math.random()) * 0x10000)
-            .toString(16)
-            .substring(1);
-    }
-    return function() {
-        return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
-            s4() + '-' + s4() + s4() + s4();
-    };
-})();
