@@ -142,6 +142,7 @@
                 o.position.z = 3;
             }
             o.rotation.order = 'ZXY';
+            o.blockworld_id = info.id
             scene.add(o);
         }
 
@@ -291,6 +292,7 @@
                     savedTouches[t.identifier] = {
                         time: new Date()
                     }
+                    placePlaceholder();
                 }
             }
         }
@@ -317,9 +319,9 @@
                     if (saved.hasOwnProperty("time")) {
                         var diff = new Date() - saved.time;
                         // short tap
-                        if (diff < SHORT_TAP_DURATION) {
+                        //if (diff < SHORT_TAP_DURATION) {
                             placeObject();
-                        }
+                        //}
                     }
                 }
             }
@@ -385,24 +387,6 @@
         camera.rotateX(-movementY * radFactor / MOUSE_SENSITIVITY);
     }
 
-    var newobj = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-    var tempmaterial = new THREE.MeshLambertMaterial({
-        color: 0xffffff,
-        ambient: 0xffffff,
-        opacity: 0.5,
-        transparent: true
-    });
-    var placeholderCube = new THREE.Mesh(newobj, tempmaterial);
-    var placeholderActive = false
-    function movePlaceholderCube() {
-        if (placeholderActive) {
-            var objectplace = new THREE.Vector3();
-            objectplace.copy(camera.position)
-            objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
-            placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
-        }
-    }
-
     window.addEventListener("keydown", function(e) {
         switch (e.keyCode) {
             case 87: // W
@@ -432,12 +416,7 @@
                 change.rotation.x = -2 * radFactor;
                 break;
             case 32: // <space>
-                var objectplace = new THREE.Vector3();
-                objectplace.copy(camera.position)
-                objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
-                placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
-                scene.add(placeholderCube);
-                placeholderActive = true;
+                placePlaceholder();
                 break;
             default:
                 break;
@@ -463,8 +442,6 @@
                 break;
             case 32: // <space>
                 placeObject();
-                scene.remove(placeholderCube);
-                placeholderActive = false;
             default:
                 break;
         }
@@ -482,6 +459,38 @@
                 z: objectplace.z
             }
         });
+        removePlaceholder();
+    }
+
+
+    var placeholderCube = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        ambient: 0xffffff,
+        opacity: 0.5,
+        transparent: true
+    }));
+    var placeholderActive = false
+
+    function movePlaceholderCube() {
+        if (placeholderActive) {
+            var objectplace = new THREE.Vector3();
+            objectplace.copy(camera.position)
+            objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
+            placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
+        }
+    }
+
+    function placePlaceholder() {
+        var posVector = cloneVector(camera.position);
+        posVector.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
+        placeholderCube.position.set(posVector.x, posVector.y, posVector.z);
+        scene.add(placeholderCube);
+        placeholderActive = true;
+    }
+
+    function removePlaceholder() {
+        placeholderActive = false;
+        scene.remove(placeholderCube);
     }
 
     var centerVector = new THREE.Vector3(0, 0, -1);
