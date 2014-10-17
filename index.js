@@ -141,10 +141,22 @@ io.on('connection', function(socket) {
             color: color,
             position: msg.position,
             size: 0.5,
-            type: "cube"
+            type: "cube",
+            placed: new Date(),
+            creator: id
         }
         io.emit('add', objects[oid]);
-    })
+    });
+    socket.on('remove', function(msg) {
+        // TODO: authentication/permission
+        if (objects.hasOwnProperty(msg.id)) {
+            delete objects[msg.id]
+            io.emit('remove', msg);
+        }
+    });
+    socket.on('query', function(msg) {
+        io.emit('info', objects[msg.id]);
+    });
 });
 
 http.listen(port, function() {

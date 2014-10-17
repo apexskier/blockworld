@@ -178,6 +178,21 @@
                 }
             }
         });
+
+        socket.on('remove', function(msg) {
+            if (objects.hasOwnProperty(msg.id)) {
+                scene.remove(objects[msg.id]);
+                delete objects[msg.id];
+            }
+            lastObj = null;
+            if (sceneline.line !== null) {
+                scene.remove(sceneline.line);
+            }
+        });
+
+        socket.on('info', function(msg) {
+            console.log(msg);
+        });
     });
 
     var radFactor = Math.PI / 180;
@@ -418,6 +433,12 @@
             case 32: // <space>
                 placePlaceholder();
                 break;
+            case 82: // r
+                removeObject(lastObj.object);
+                break;
+            case 81: // q
+                getInfo(lastObj.object);
+                break;
             default:
                 break;
         }
@@ -462,6 +483,17 @@
         removePlaceholder();
     }
 
+    function removeObject(obj) {
+        socket.emit('remove', {
+            id: obj.blockworld_id
+        });
+    }
+
+    function getInfo(obj) {
+        socket.emit('query', {
+            id: obj.blockworld_id
+        });
+    }
 
     var placeholderCube = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshLambertMaterial({
         color: 0xffffff,
@@ -580,6 +612,8 @@
                 sceneline.line = new THREE.Line(lineGeometry, lineMaterial);
                 scene.add(sceneline.line);
             }
+        } else if (sceneline.line !== null) {
+            scene.remove(sceneline.line);
         }
 
         movePlaceholderCube();
