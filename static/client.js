@@ -20,28 +20,38 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    var geometry = new THREE.BoxGeometry(1,1,1);
-    var material = new THREE.MeshLambertMaterial({ color: 0x00ff00, ambient: 0x00ff00 });
-    var cube = new THREE.Mesh(geometry, material);
+    //var geometry = new THREE.BoxGeometry(1,1,1);
+    //var material = new THREE.MeshLambertMaterial({ color: 0x00ff00, ambient: 0x00ff00 });
+    //var cube = new THREE.Mesh(geometry, material);
     var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    directionalLight.position.set(1, 4, 7).normalize();
-    var ambientLight = new THREE.AmbientLight(0x333333);
+    directionalLight.position.set(1, 1, 1).normalize();
+    var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.3);
+    directionalLight2.position.set(1, -1, -1).normalize();
+    var ambientLight = new THREE.AmbientLight(0x666666);
 
-    var selfGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    var selfMat = new THREE.MeshLambertMaterial({color: 0xffffff, ambient: 0xffffff});
-    var selfObject = new THREE.Mesh(selfGeo, selfMat);
+    var selfGeo = new THREE.SphereGeometry(0.4, 32, 32 );
+    var selfMat = new THREE.MeshLambertMaterial({ color: 0xffffff, ambient: 0xffffff });
+    selfObject = new THREE.Mesh(selfGeo, selfMat);
 
     var camDistance = 5;
 
-    var controls;
-    controls = new THREE.CustomControls(canvas, camera, selfObject);
+    var controls = new THREE.CustomControls(canvas, camera, selfObject);
+    controls.inverted = true;
 
-    document.addEventListener( 'mousemove', function (e) {
-        console.log('mousemove event', e);
-    }, false);
+    var physics = new Physics();
+    selfPhysics = physics.register(selfObject);
 
-    scene.add(cube);
+    controls.keyHold('w', function () {
+        selfPhysics.applyForce(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setLength(1));
+    });
+    controls.keyHold('s', function () {
+        selfPhysics.applyForce(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setLength(-1));
+    });
+
+    //scene.add(cube);
+    scene.add(selfObject);
     scene.add(directionalLight);
+    scene.add(directionalLight2);
     scene.add(ambientLight);
 
     var objects = {}
@@ -296,28 +306,10 @@
         }
         e.preventDefault();
     });
-    window.addEventListener("touchmove", function(e) {
-        for (var k in e.changedTouches) {
-            var testK = parseInt(k);
-            if (testK === testK) { // if isn't NaN
-                var t = e.changedTouches[k];
-                if (MOBILE_PAN_CONTROL == "touchmove" && t.identifier === touchPan.id) {
-                    // panning
-                    camera.rotateY((t.clientX - touchPan.x) * radFactor / 5);
-                    camera.rotateX((t.clientY - touchPan.y) * radFactor / 5);
-
-                    touchPan.x = t.clientX;
-                    touchPan.y = t.clientY;
-                }
-            }
-        }
-        e.preventDefault();
-    });
-
 
     window.addEventListener("keydown", function(e) {
         switch (e.keyCode) {
-            case 87: // W
+            /*case 87: // W
                 change.position.z = 0.1;
                 break;
             case 83: // S
@@ -342,7 +334,7 @@
                 break;
             case 40: // down
                 change.rotation.x = -2 * radFactor;
-                break;
+                break;*/
             case 32: // <space>
                 placePlaceholder();
                 break;
@@ -358,14 +350,14 @@
     });
     window.addEventListener("keyup", function(e) {
         switch (e.keyCode) {
-            case 87: // W
+            /*case 87: // W
             case 83: // S
                 change.position.z = 0;
                 break;
             case 65: // A
             case 68: // D
                 change.position.x = 0;
-                break;
+                break;*/
             case 37: // <-
             case 39: // ->
                 change.rotation.y = 0;
@@ -384,7 +376,7 @@
 
     function placeObject() {
         var objectplace = new THREE.Vector3();
-        objectplace.copy(camera.position)
+        objectplace.copy(selfObject.position)
         objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
         socket.emit('place', {
             position: {
@@ -419,14 +411,14 @@
     function movePlaceholderCube() {
         if (placeholderActive) {
             var objectplace = new THREE.Vector3();
-            objectplace.copy(camera.position)
+            objectplace.copy(selfObject.position)
             objectplace.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
             placeholderCube.position.set(objectplace.x, objectplace.y, objectplace.z);
         }
     }
 
     function placePlaceholder() {
-        var posVector = cloneVector(camera.position);
+        var posVector = cloneVector(selfObject.position);
         posVector.add(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize().multiplyScalar(3));
         placeholderCube.position.set(posVector.x, posVector.y, posVector.z);
         scene.add(placeholderCube);
@@ -451,32 +443,25 @@
     };
     var lastObj = null;
 
-    function render() {
+    function render(time) {
         requestAnimationFrame(render);
 
         controls.update();
+        physics.update(time);
 
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
-
-        //shape.rotation.x += 0.005;
-        //shape.rotation.y += 0.005;
-
-        camera.translateZ(-change.position.z);
-        camera.translateX(change.position.x);
-        camera.rotateY(change.rotation.y);
-        camera.rotateX(change.rotation.x);
+        //cube.rotation.x += 0.01;
+        //cube.rotation.y += 0.01;
 
         socket.emit('move', {
             rotation: {
-                x: camera.rotation.x,
-                y: camera.rotation.y,
-                z: camera.rotation.z
+                x: selfObject.rotation.x,
+                y: selfObject.rotation.y,
+                z: selfObject.rotation.z
             },
             position: {
-                x: camera.position.x,
-                y: camera.position.y,
-                z: camera.position.z
+                x: selfObject.position.x,
+                y: selfObject.position.y,
+                z: selfObject.position.z
             }
         });
 

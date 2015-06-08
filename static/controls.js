@@ -5,7 +5,7 @@
  * @author Luca Antiga 	/ http://lantiga.github.io
  */
 
-THREE.CustomControls = function ( domElement, camera, object ) {
+THREE.CustomControls = function ( domElement, camera, object, options ) {
 
 	var _this = this;
 	var STATE = { NONE: -1, ROTATE: 0, ZOOM: 1, PAN: 2, TOUCH_ROTATE: 3, TOUCH_ZOOM_PAN: 4 };
@@ -23,6 +23,7 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 	this.rotateSpeed = 1.0;
 	this.zoomSpeed = 1.2;
 	this.panSpeed = 0.3;
+    this.maxSpeed = 1;
 
 	this.noRotate = false;
 	this.noZoom = false;
@@ -31,14 +32,14 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 	this.staticMoving = false;
 	this.dynamicDampingFactor = 0.2;
 
-	this.minDistance = 0;
-	this.maxDistance = Infinity;
+	this.minDistance = 3;
+	this.maxDistance = 7;
 
-	this.keys = [ 65 /*A*/, 83 /*S*/, 68 /*D*/ ];
+    this.inverted = false;
 
 	// internals
 
-	this.target = new THREE.Vector3();
+	this.target = object.position.clone();
 
 	var EPS = 0.000001;
 
@@ -62,13 +63,18 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 	_touchZoomDistanceEnd = 0,
 
 	_panStart = new THREE.Vector2(),
-	_panEnd = new THREE.Vector2();
+	_panEnd = new THREE.Vector2(),
+
+    _speed = 0,
+
+    _keysActivated = {},
+    _keyHandlers = {};
 
 	// for reset
 
 	this.target0 = this.target.clone();
-	this.position0 = this.object.position.clone();
-	this.up0 = this.object.up.clone();
+	this.position0 = this.camera.position.clone();
+	this.up0 = this.camera.up.clone();
 
 	// events
 
@@ -162,10 +168,10 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 			if ( angle ) {
 
-				_eye.copy( _this.object.position ).sub( _this.target );
+				_eye.copy( _this.camera.position ).sub( _this.target );
 
 				eyeDirection.copy( _eye ).normalize();
-				objectUpDirection.copy( _this.object.up ).normalize();
+				objectUpDirection.copy( _this.camera.up ).normalize();
 				objectSidewaysDirection.crossVectors( objectUpDirection, eyeDirection ).normalize();
 
 				objectUpDirection.setLength( _moveCurr.y - _movePrev.y );
@@ -179,7 +185,7 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 				quaternion.setFromAxisAngle( axis, angle );
 
 				_eye.applyQuaternion( quaternion );
-				_this.object.up.applyQuaternion( quaternion );
+				_this.camera.up.applyQuaternion( quaternion );
 
 				_lastAxis.copy( axis );
 				_lastAngle = angle;
@@ -189,10 +195,10 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 			else if ( !_this.staticMoving && _lastAngle ) {
 
 				_lastAngle *= Math.sqrt( 1.0 - _this.dynamicDampingFactor );
-				_eye.copy( _this.object.position ).sub( _this.target );
+				_eye.copy( _this.camera.position ).sub( _this.target );
 				quaternion.setFromAxisAngle( _lastAxis, _lastAngle );
 				_eye.applyQuaternion( quaternion );
-				_this.object.up.applyQuaternion( quaternion );
+				_this.camera.up.applyQuaternion( quaternion );
 
 			}
 
@@ -251,10 +257,10 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 				mouseChange.multiplyScalar( _eye.length() * _this.panSpeed );
 
-				pan.copy( _eye ).cross( _this.object.up ).setLength( mouseChange.x );
-				pan.add( objectUp.copy( _this.object.up ).setLength( mouseChange.y ) );
+				pan.copy( _eye ).cross( _this.camera.up ).setLength( mouseChange.x );
+				pan.add( objectUp.copy( _this.camera.up ).setLength( mouseChange.y ) );
 
-				_this.object.position.add( pan );
+				_this.camera.position.add( pan );
 				_this.target.add( pan );
 
 				if ( _this.staticMoving ) {
@@ -278,13 +284,13 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 			if ( _eye.lengthSq() > _this.maxDistance * _this.maxDistance ) {
 
-				_this.object.position.addVectors( _this.target, _eye.setLength( _this.maxDistance ) );
+				_this.camera.position.addVectors( _this.target, _eye.setLength( _this.maxDistance ) );
 
 			}
 
 			if ( _eye.lengthSq() < _this.minDistance * _this.minDistance ) {
 
-				_this.object.position.addVectors( _this.target, _eye.setLength( _this.minDistance ) );
+				_this.camera.position.addVectors( _this.target, _eye.setLength( _this.minDistance ) );
 
 			}
 
@@ -294,7 +300,9 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 	this.update = function () {
 
-		_eye.subVectors( _this.object.position, _this.target );
+        _this.target = _this.object.position.clone();
+
+		_eye.subVectors( _this.camera.position, _this.target );
 
 		if ( !_this.noRotate ) {
 
@@ -314,17 +322,31 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 		}
 
-		_this.object.position.addVectors( _this.target, _eye );
+        for ( var key in _keysActivated ) {
+
+            if ( _keysActivated.hasOwnProperty(key) && _keysActivated[key] && _keyHandlers.hasOwnProperty(key) ) {
+
+                for ( var i = 0; i < _keyHandlers[key].length; i++ ) {
+
+                    _keyHandlers[key][i]();
+
+                }
+
+            }
+
+        }
+
+		_this.camera.position.addVectors( _this.target, _eye );
 
 		_this.checkDistances();
 
-		_this.object.lookAt( _this.target );
+		_this.camera.lookAt( _this.target );
 
-		if ( lastPosition.distanceToSquared( _this.object.position ) > EPS ) {
+		if ( lastPosition.distanceToSquared( _this.camera.position ) > EPS ) {
 
 			_this.dispatchEvent( changeEvent );
 
-			lastPosition.copy( _this.object.position );
+			lastPosition.copy( _this.camera.position );
 
 		}
 
@@ -336,58 +358,20 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 		_prevState = STATE.NONE;
 
 		_this.target.copy( _this.target0 );
-		_this.object.position.copy( _this.position0 );
-		_this.object.up.copy( _this.up0 );
+		_this.camera.position.copy( _this.position0 );
+		_this.camera.up.copy( _this.up0 );
 
-		_eye.subVectors( _this.object.position, _this.target );
+		_eye.subVectors( _this.camera.position, _this.target );
 
-		_this.object.lookAt( _this.target );
+		_this.camera.lookAt( _this.target );
 
 		_this.dispatchEvent( changeEvent );
 
-		lastPosition.copy( _this.object.position );
+		lastPosition.copy( _this.camera.position );
 
 	};
 
 	// listeners
-
-	function keydown( event ) {
-
-		if ( _this.enabled === false ) return;
-
-		window.removeEventListener( 'keydown', keydown );
-
-		_prevState = _state;
-
-		if ( _state !== STATE.NONE ) {
-
-			return;
-
-		} else if ( event.keyCode === _this.keys[ STATE.ROTATE ] && !_this.noRotate ) {
-
-			_state = STATE.ROTATE;
-
-		} else if ( event.keyCode === _this.keys[ STATE.ZOOM ] && !_this.noZoom ) {
-
-			_state = STATE.ZOOM;
-
-		} else if ( event.keyCode === _this.keys[ STATE.PAN ] && !_this.noPan ) {
-
-			_state = STATE.PAN;
-
-		}
-
-	}
-
-	function keyup( event ) {
-
-		if ( _this.enabled === false ) return;
-
-		_state = _prevState;
-
-		window.addEventListener( 'keydown', keydown, false );
-
-	}
 
 	function mousemove( event ) {
 
@@ -405,14 +389,17 @@ THREE.CustomControls = function ( domElement, camera, object ) {
                         event.webkitMovementY ||
                         0;
 
-        _movePrev.copy(_moveCurr);
-        _moveCurr = new THREE.Vector2(movementX, movementY);
+        if (_this.inverted) {
+            movementX = -movementX;
+            movementY = -movementY;
+        }
+
+        _movePrev.set(0, 0);
+        _moveCurr = new THREE.Vector2( movementX / 100, -movementY / 100 );
 
 	}
 
 	function pointerlockchange( event ) {
-        console.log(event);
-        console.log(document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement);
 
 		if ( _this.enabled === false ) return;
 
@@ -427,6 +414,54 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
             _this.domElement.removeEventListener( 'mousemove', mousemove );
             _this.dispatchEvent( endEvent );
+
+        }
+
+    }
+
+    function keydown( event ) {
+
+        switch ( event.keyCode ) {
+
+            case 87:
+                _keysActivated['w'] = true;
+                break;
+
+            case 83:
+                _keysActivated['s'] = true;
+                break;
+
+            case 65:
+                _keysActivated['a'] = true;
+                break;
+
+            case 68:
+                _keysActivated['d'] = true;
+                break;
+
+        }
+
+    }
+
+    function keyup( event ) {
+
+        switch ( event.keyCode ) {
+
+            case 87: // W
+                _keysActivated['w'] = false;
+                break;
+
+            case 83: // S
+                _keysActivated['s'] = false;
+                break;
+
+            case 65: // A
+                _keysActivated['a'] = false;
+                break;
+
+            case 68: // D
+                _keysActivated['d'] = false;
+                break;
 
         }
 
@@ -561,6 +596,9 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 
 	this.domElement.addEventListener( 'contextmenu', function ( event ) { event.preventDefault(); }, false );
 
+    document.addEventListener( 'keydown', keydown, false );
+    document.addEventListener( 'keyup', keyup, false );
+
 	this.domElement.addEventListener( 'mousewheel', mousewheel, false );
 	this.domElement.addEventListener( 'DOMMouseScroll', mousewheel, false ); // firefox
 
@@ -568,10 +606,19 @@ THREE.CustomControls = function ( domElement, camera, object ) {
 	this.domElement.addEventListener( 'touchend', touchend, false );
 	this.domElement.addEventListener( 'touchmove', touchmove, false );
 
-	window.addEventListener( 'keydown', keydown, false );
-	window.addEventListener( 'keyup', keyup, false );
-
 	this.handleResize();
+
+    this.keyHold = function( key, handler ) {
+
+        if ( !_keyHandlers.hasOwnProperty(key) ) {
+
+            _keyHandlers[key] = [];
+
+        }
+
+        _keyHandlers[key].push(handler);
+
+    }
 
 	// force an update at start
 	this.update();
