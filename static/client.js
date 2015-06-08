@@ -23,85 +23,31 @@
     var geometry = new THREE.BoxGeometry(1,1,1);
     var material = new THREE.MeshLambertMaterial({ color: 0x00ff00, ambient: 0x00ff00 });
     var cube = new THREE.Mesh(geometry, material);
-    //var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
-    //directionalLight.position.set(1, 4, 7).normalize();
+    var directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(1, 4, 7).normalize();
     var ambientLight = new THREE.AmbientLight(0x333333);
 
-    var sunShape = new THREE.SphereGeometry(3, 8, 8)
-    var sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-    var sun = new THREE.Mesh(sunShape, sunMaterial);
-    var sunLight = new THREE.PointLight(0xffffff, 1, 100)
-    sun.position.set(30, 30, 30);
-    sunLight.position.set(30, 30, 30);
-    scene.add(sun);
-    scene.add(sunLight);
+    var selfGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    var selfMat = new THREE.MeshLambertMaterial({color: 0xffffff, ambient: 0xffffff});
+    var selfObject = new THREE.Mesh(selfGeo, selfMat);
+
+    var camDistance = 5;
+
+    var controls;
+    controls = new THREE.CustomControls(canvas, camera, selfObject);
+
+    document.addEventListener( 'mousemove', function (e) {
+        console.log('mousemove event', e);
+    }, false);
 
     scene.add(cube);
-    //scene.add(directionalLight);
+    scene.add(directionalLight);
     scene.add(ambientLight);
-
-
-
-    /*var geometry = new THREE.Geometry();
-
-    geometry.vertices.push(
-        new THREE.Vector3( -3,  3, 0 ),
-        new THREE.Vector3( -3, -3, 0 ),
-        new THREE.Vector3(  3, -3, 0 )
-    );
-
-    geometry.faces.push( new THREE.Face3( 0, 1, 2 ) );
-
-    // add faces
-    geometry.vertices.push(new THREE.Vector3(3, 0, -3));
-    geometry.faces.push(
-        new THREE.Face3(1, 0, 3),
-        new THREE.Face3(2, 1, 3),
-        new THREE.Face3(0, 2, 3)
-    );
-
-    // pick a face
-    var f = geometry.faces[2];
-    var a = f.a,
-        b = f.b,
-        c = f.c;
-    // get vertices
-    var v1 = geometry.vertices[f.a],
-        v2 = geometry.vertices[f.b],
-        v3 = geometry.vertices[f.c];
-    var nv = new THREE.Vector3(1,  -1)
-    nv.copy(v1).add(v2).add(v3).divideScalar(v1.length() + v2.length() + v3.length());
-
-    var nvi = geometry.vertices.push(nv);
-
-    geometry.faces[2].c = geometry.vertices.length - 1;
-    geometry.faces.push(new THREE.Face3(a, geometry.vertices.length - 1, c));
-    geometry.faces.push(new THREE.Face3(geometry.vertices.length - 1, b, c));
-    */
-
-    /*verticeDistances = _.map(geometry.vertices, function(d) {
-        return geometry.vertices[v].distanceTo(nv)
-    });
-
-    geometry.faces.push(
-        new THREE.Face3(1, 0, 3),
-        new THREE.Face3(2, 1, 3),
-        new THREE.Face3(0, 2, 3)
-    );*/
-
-    // add edges
-
-    /*geometry.computeBoundingSphere();
-    geometry.computeFaceNormals();
-
-
-    var shape = new THREE.Mesh(geometry, material);
-    scene.add(shape);
-    */
 
     var objects = {}
 
     camera.position.z = 5;
+    camera.position.x = 5;
     camera.rotation.order = 'ZXY';
 
     socket.on('connect', function(msg) {
@@ -368,39 +314,6 @@
         e.preventDefault();
     });
 
-    /*
-     * Desktop controls
-     */
-    canvas.requestPointerLock = canvas.requestPointerLock ||
-        canvas.mozRequestPointerLock ||
-        canvas.webkitRequestPointerLock;
-    canvas.onclick = function() {
-        canvas.requestPointerLock();
-    }
-    document.addEventListener('pointerlockchange', lockChangeAlert, false);
-    document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
-    document.addEventListener('webkitpointerlockchange', lockChangeAlert, false);
-    function lockChangeAlert() {
-        if (document.pointerLockElement === canvas ||
-                document.mozPointerLockElement === canvas ||
-                document.webkitPointerLockElement === canvas) {
-            document.addEventListener("mousemove", handleMouseMove, false);
-        } else {
-            document.removeEventListener("mousemove", handleMouseMove, false);
-        }
-    }
-    function handleMouseMove(e) {
-        var movementX = e.movementX ||
-                        e.mozMovementX          ||
-                        e.webkitMovementX       ||
-                        0;
-        var movementY = e.movementY ||
-                        e.mozMovementY      ||
-                        e.webkitMovementY   ||
-                        0;
-        camera.rotateY(-movementX * radFactor / MOUSE_SENSITIVITY);
-        camera.rotateX(-movementY * radFactor / MOUSE_SENSITIVITY);
-    }
 
     window.addEventListener("keydown", function(e) {
         switch (e.keyCode) {
@@ -540,6 +453,8 @@
 
     function render() {
         requestAnimationFrame(render);
+
+        controls.update();
 
         cube.rotation.x += 0.01;
         cube.rotation.y += 0.01;
