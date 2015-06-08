@@ -25,7 +25,7 @@ var Physics = function() {
         if (!hitbox instanceof THREE.Geometry) {
             throw "object not instance of THREE.Geometry";
         }
-        friction = friction || 1.2;
+        friction = friction || 1.02;
         if (!objects.hasOwnProperty(object.uuid)) {
             objects[object.uuid] = {
                 velocity: new THREE.Vector3(),
@@ -36,11 +36,15 @@ var Physics = function() {
                 lastRotation: object.rotation,
                 object: object,
                 friction: friction,
+                maxSpeed: false,
                 applyForce: function (vec) {
                     if (!vec instanceof THREE.Vector3) {
                         throw "vector not instance of THREE.Vector3";
                     }
                     this.velocity.add(vec);
+                    if (this.maxSpeed && this.velocity.length() > this.maxSpeed) {
+                        this.velocity.setLength(this.maxSpeed);
+                    }
                 },
                 dampenForce: function (amount) {
                     this.velocity.divideScalar(amount);

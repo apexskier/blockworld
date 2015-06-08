@@ -29,6 +29,9 @@
     directionalLight2.position.set(1, -1, -1).normalize();
     var ambientLight = new THREE.AmbientLight(0x666666);
 
+    var biteGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    var biteMat = new THREE.MeshLambertMaterial({ color: 0xff00ff, ambient: 0xff00ff });
+
     var selfGeo = new THREE.SphereGeometry(0.4, 32, 32 );
     var selfMat = new THREE.MeshLambertMaterial({ color: 0xffffff, ambient: 0xffffff });
     selfObject = new THREE.Mesh(selfGeo, selfMat);
@@ -40,6 +43,7 @@
 
     var physics = new Physics();
     selfPhysics = physics.register(selfObject);
+    selfPhysics.maxSpeed = 4;
 
     controls.keyHold('w', function () {
         selfPhysics.applyForce(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).setLength(1));
@@ -53,6 +57,22 @@
     scene.add(directionalLight);
     scene.add(directionalLight2);
     scene.add(ambientLight);
+
+    var simplexNoise = new SimplexNoise();
+    for (var x = -40; x < 40; x += 2) {
+        console.log(x);
+        for (var y = -40; y < 40; y += 2) {
+            for (var z = -40; z < 40; z += 2) {
+                var sn = simplexNoise.noise3d(x, y, z);
+                if (sn > 0.85) {
+                    console.log(sn);
+                    var bite = new THREE.Mesh(biteGeo, biteMat);
+                    bite.position.set(x + sn, y - sn, z + sn);
+                    scene.add(bite);
+                }
+            }
+        }
+    }
 
     var objects = {}
 

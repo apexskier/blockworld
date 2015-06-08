@@ -32,7 +32,7 @@ THREE.CustomControls = function ( domElement, camera, object, options ) {
 	this.staticMoving = false;
 	this.dynamicDampingFactor = 0.2;
 
-	this.minDistance = 3;
+	this.minDistance = 7;
 	this.maxDistance = 7;
 
     this.inverted = false;
